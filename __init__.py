@@ -1,14 +1,26 @@
-from dataclasses import dataclass
-from typing import Optional, Union
-
 import copy
 import enum
 import random
 
+from dataclasses import dataclass
+from typing import Optional, Union
 
-START_TAG = "'("
-END_TAG = ")"
-CHOICE_TAG = "|"
+from anki import hooks
+from anki.template import TemplateRenderContext, TemplateRenderOutput
+from aqt import mw
+
+
+config = mw.addonManager.getConfig(__name__)
+
+
+START_TAG: str = config["START_TAG"]
+END_TAG: str = config["END_TAG"]
+CHOICE_TAG: str = config["CHOICE_TAG"]
+
+
+assert (
+    len(set([START_TAG, END_TAG, CHOICE_TAG])) == 3
+), "Must have unique start, end, and choice operators."
 
 
 class Tag(enum.Enum):
@@ -106,16 +118,32 @@ def run_parser(arg: str) -> str:
     respectively, parsing "'(hello|world)" yields either "hello" or "world".
     """
     tokens = _tokenize(arg)
-    stack: list[list[str]] = [[]]
+    buffer: list[str] = [""]
+    stack: list[list[str]] = []
     for token in tokens:
         if token is Tag.START:
+            buffer.append("")
             stack.append([])
         elif token is Tag.END:
+            stack[-1].append(buffer.pop())
             ts = stack.pop()
-            stack[-1].append(random.choice(ts))
+            buffer[-1] += random.choice(ts)
         elif token is Tag.CHOICE:
-            pass
+            stack[-1].append(buffer[-1])
+            buffer[-1] = ""
         else:
-            stack[-1].append(token)
-    assert len(stack) == 1, "Stack is larger than a single element"
-    return "".join(stack[0])
+            buffer[-1] += token
+    assert not stack, "Stack should be empty"
+    assert len(buffer) == 1, "Buffer should only have one element."
+    return buffer[0]
+
+
+def on_card_render(
+    output: TemplateRenderOutput,
+    _unused_context: TemplateRenderContext,
+):
+    output.question_text = run_parser(output.question_text)
+    output.answer_text = run_parser(output.answer_text)
+
+
+hooks.card_did_render.append(on_card_render)
