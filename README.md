@@ -4,6 +4,8 @@ A simple [Anki plugin](https://ankiweb.net/shared/info/492653825) that allows
 randomly choosing different options for parts of prompts. This was designed to
 handle synonyms in a clean way.
 
+## Motivation
+
 Consider a [total order](https://en.wikipedia.org/wiki/Total_order). What this
 is does not matter; other names it may have does. What some people call a
 "total order", others call a "linear order". Though this example is simple, it
